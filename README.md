@@ -1,4 +1,5 @@
-Z-Render: The High-Performance Software GPU
+# Z-Render: The High-Performance Software GPU
+
 Z-Render is a zero-dependency, SIMD-accelerated 3D graphics pipeline written in Zig.
 It rejects modern graphics APIs (WebGL, WebGPU, Vulkan) to implement the entire rendering pipeline purely on the CPU, targeting WebAssembly for high-performance browser execution.
 > Motto: "No GPU? No Problem. We are the GPU."
