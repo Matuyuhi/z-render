@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Z-Render: Software GPU</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1a1a2e;
+            color: #eee;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            color: #00ff88;
+        }
+
+        .subtitle {
+            color: #888;
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+
+        #canvas {
+            border: 2px solid #333;
+            background: #000;
+        }
+
+        .stats {
+            margin-top: 15px;
+            font-family: monospace;
+            color: #00ff88;
+        }
+
+        .controls {
+            margin-top: 15px;
+        }
+
+        button {
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 8px 16px;
+            margin: 0 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: #444;
+        }
+    </style>
+</head>
+<body>
+    <h1>Z-Render</h1>
+    <p class="subtitle">"No GPU? No Problem. We are the GPU."</p>
+
+    <canvas id="canvas" width="800" height="600"></canvas>
+
+    <div class="stats">
+        <span id="fps">FPS: --</span> |
+        <span id="resolution">Resolution: --</span>
+    </div>
+
+    <div class="controls">
+        <button id="btn-clear-red">Clear Red</button>
+        <button id="btn-clear-green">Clear Green</button>
+        <button id="btn-clear-blue">Clear Blue</button>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>
