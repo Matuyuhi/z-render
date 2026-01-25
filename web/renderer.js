@@ -62,8 +62,22 @@ class ZRenderer {
      */
     async init() {
         try {
-            // Wasmファイルを読み込み
-            const response = await fetch('../zig-out/bin/z-render.wasm');
+            // Wasmファイルのパスを解決
+            // ローカル環境: ../zig-out/bin/z-render.wasm
+            // GitHub Pages: zig-out/bin/z-render.wasm
+            let wasmPath = '../zig-out/bin/z-render.wasm';
+            let response = await fetch(wasmPath);
+
+            // 404の場合はGitHub Pages用のパスを試す
+            if (!response.ok) {
+                wasmPath = 'zig-out/bin/z-render.wasm';
+                response = await fetch(wasmPath);
+            }
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch Wasm file: ${response.status} ${response.statusText}`);
+            }
+
             const bytes = await response.arrayBuffer();
 
             // Wasmをインスタンス化
