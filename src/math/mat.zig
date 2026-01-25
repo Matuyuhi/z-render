@@ -205,25 +205,159 @@ pub const Mat4 = struct {
     // View / Projection 行列 (Phase 3 で実装)
     // =========================================================================
 
-    /// LookAt行列 (カメラ行列)
-    /// TODO: 実装する
+    /// LookAt行列 (View 行列)
+    ///
+    /// ## アルゴリズム
+    ///
+    /// カメラの位置（eye）と注視点（target）から、ワールド座標からビュー座標への
+    /// 変換行列を生成します。
+    ///
+    /// 1. カメラの向き（forward）を計算: `forward = normalize(target - eye)`
+    /// 2. カメラの右方向（right）を計算: `right = normalize(cross(forward, up))`
+    /// 3. カメラの上方向（actualUp）を再計算: `actualUp = cross(right, forward)`
+    /// 4. 回転部分と平行移動を組み合わせた行列を作成
+    ///
+    /// ## 図解
+    ///
+    /// ```
+    ///       up (world)
+    ///        |
+    ///        |
+    ///        +---→ right
+    ///       /
+    ///      / forward (camera direction)
+    ///     eye
+    ///      \
+    ///       \
+    ///        target
+    /// ```
+    ///
+    /// ## 学習ポイント
+    ///
+    /// - OpenGLの右手座標系では、カメラは-Z方向を向く
+    /// - このため、forward を反転させる（-forward）
+    /// - View行列は「ワールドをカメラ基準に変換」する行列
+    ///
+    /// ## TODO (Phase 4)
+    ///
+    /// - カメラのロール（Z軸回転）にも対応
     pub fn lookAt(eye: Vec3, target: Vec3, up: Vec3) Mat4 {
-        _ = eye;
-        _ = target;
-        _ = up;
-        // Phase 3 で実装
-        return identity;
+        // forward = normalize(target - eye)
+        // 右手座標系なので、カメラは-Z方向を向く
+        const forward_dir = target - eye;
+        const forward_len = @sqrt(vec.vec3.dot(forward_dir, forward_dir));
+        const forward_norm: Vec3 = if (forward_len > 0.0001) forward_dir / @as(Vec3, @splat(forward_len)) else .{ 0, 0, -1 };
+
+        // right = normalize(cross(forward, up))
+        const right_dir = vec.vec3.cross(forward_norm, up);
+        const right_len = @sqrt(vec.vec3.dot(right_dir, right_dir));
+        const right: Vec3 = if (right_len > 0.0001) right_dir / @as(Vec3, @splat(right_len)) else .{ 1, 0, 0 };
+
+        // actualUp = cross(right, forward)
+        const actual_up = vec.vec3.cross(right, forward_norm);
+
+        // View行列を構築
+        // カメラ座標系の軸ベクトルを行列の行として配置し、
+        // 原点をカメラ位置に移動
+        const tx = -vec.vec3.dot(right, eye);
+        const ty = -vec.vec3.dot(actual_up, eye);
+        const tz = vec.vec3.dot(forward_norm, eye); // 注意: +にする（-Z方向を向くため）
+
+        return .{
+            .cols = .{
+                .{ right[0], actual_up[0], -forward_norm[0], 0.0 },
+                .{ right[1], actual_up[1], -forward_norm[1], 0.0 },
+                .{ right[2], actual_up[2], -forward_norm[2], 0.0 },
+                .{ tx, ty, tz, 1.0 },
+            },
+        };
     }
 
-    /// 透視投影行列
-    /// TODO: 実装する
+    /// 透視投影行列 (Perspective Projection)
+    ///
+    /// ## アルゴリズム
+    ///
+    /// 3D空間の点を、遠近感を持つ2D平面に投影します。
+    ///
+    /// 1. 視野角（fov）からフラスタム（視錐台）のサイズを計算
+    /// 2. near/farクリッピング平面を設定
+    /// 3. 透視除算のための同次座標（w成分）を設定
+    ///
+    /// ## 図解
+    ///
+    /// ```
+    ///        far plane
+    ///       /        \
+    ///      /          \
+    ///     /            \  <- フラスタム（視錐台）
+    ///    /      fov     \
+    ///   +----------------+ near plane
+    ///   |    (eye)
+    /// ```
+    ///
+    /// ## 学習ポイント
+    ///
+    /// - 透視投影では、遠くのものほど小さく見える
+    /// - w成分にz値を格納し、後で透視除算（x/w, y/w, z/w）を行う
+    /// - NDC（正規化デバイス座標）は [-1, 1]^3 の立方体
+    /// - OpenGLスタイル: Zは [-1, 1]（DirectXは [0, 1]）
+    ///
+    /// ## TODO (Phase 4)
+    ///
+    /// - リバースZ（深度精度向上）の実装
+    ///
+    /// @param fov_rad 視野角（ラジアン）※垂直方向
+    /// @param aspect アスペクト比（width / height）
+    /// @param near ニアクリップ平面
+    /// @param far ファークリップ平面
     pub fn perspective(fov_rad: f32, aspect: f32, near: f32, far: f32) Mat4 {
-        _ = fov_rad;
-        _ = aspect;
-        _ = near;
-        _ = far;
-        // Phase 3 で実装
-        return identity;
+        const tan_half_fov = @tan(fov_rad / 2.0);
+
+        // フラスタムのサイズを計算
+        const f = 1.0 / tan_half_fov;
+        const nf = 1.0 / (near - far);
+
+        return .{
+            .cols = .{
+                .{ f / aspect, 0.0, 0.0, 0.0 },
+                .{ 0.0, f, 0.0, 0.0 },
+                .{ 0.0, 0.0, (far + near) * nf, -1.0 },
+                .{ 0.0, 0.0, 2.0 * far * near * nf, 0.0 },
+            },
+        };
+    }
+
+    /// 正射影行列 (Orthographic Projection)
+    ///
+    /// ## アルゴリズム
+    ///
+    /// 遠近感のない平行投影を行います。
+    /// 主にUIやデバッグ描画に使用。
+    ///
+    /// ## 学習ポイント
+    ///
+    /// - 透視投影と異なり、遠くのものも同じ大きさで表示
+    /// - w成分は常に1.0のまま（透視除算なし）
+    ///
+    /// @param left 左端
+    /// @param right 右端
+    /// @param bottom 下端
+    /// @param top 上端
+    /// @param near ニアクリップ
+    /// @param far ファークリップ
+    pub fn orthographic(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) Mat4 {
+        const rl = 1.0 / (right - left);
+        const tb = 1.0 / (top - bottom);
+        const far_near = 1.0 / (far - near);
+
+        return .{
+            .cols = .{
+                .{ 2.0 * rl, 0.0, 0.0, 0.0 },
+                .{ 0.0, 2.0 * tb, 0.0, 0.0 },
+                .{ 0.0, 0.0, -2.0 * far_near, 0.0 },
+                .{ -(right + left) * rl, -(top + bottom) * tb, -(far + near) * far_near, 1.0 },
+            },
+        };
     }
 };
 

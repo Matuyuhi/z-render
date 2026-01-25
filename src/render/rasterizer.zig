@@ -35,10 +35,13 @@
 const std = @import("std");
 const math = @import("../math/root.zig");
 const Vec2 = math.Vec2;
+const Vec3 = math.Vec3;
 const Vec4 = math.Vec4;
 const vec2 = math.vec.vec2;
+const vec3 = math.vec.vec3;
 const vec4 = math.vec.vec4;
 const framebuffer = @import("framebuffer.zig");
+const depth_buffer = @import("depth_buffer.zig");
 
 // =============================================================================
 // 基本型定義
@@ -394,6 +397,105 @@ pub fn fillTriangleInterpolated(v0: Vertex2D, v1: Vertex2D, v2: Vertex2D) void {
                 const color = vec4ToColor(interpolated);
                 const index = @as(u32, @intCast(y)) * width + @as(u32, @intCast(x));
                 fb_ptr[index] = color;
+            }
+        }
+    }
+}
+
+// =============================================================================
+// Phase 3: 深度バッファ対応の3D描画
+// =============================================================================
+
+/// 3D三角形の頂点（スクリーン座標 + 深度 + 色）
+///
+/// ## 学習ポイント
+///
+/// - screen_pos: スクリーン座標（Vec3のz成分は深度値）
+/// - color: 頂点カラー（Gouraud Shading用）
+pub const Vertex3DScreen = struct {
+    screen_pos: Vec3, // (x, y, depth)
+    color: Vec4, // RGBA
+};
+
+/// 深度バッファ対応の三角形描画（Gouraud Shading + Z-Test）
+///
+/// ## アルゴリズム
+///
+/// 1. バウンディングボックス内の各ピクセルをスキャン
+/// 2. 重心座標を計算
+/// 3. 深度値を補間
+/// 4. 深度テスト（Z-Test）を実行
+/// 5. テストに合格したら色を補間して描画
+///
+/// ## 図解
+///
+/// ```
+/// ピクセル (x, y) での処理:
+///
+/// 1. 重心座標 (w0, w1, w2) を計算
+/// 2. 深度を補間: depth = w0*z0 + w1*z1 + w2*z2
+/// 3. 深度テスト: if (depth < depth_buffer[x, y]) {
+/// 4.   色を補間: color = w0*c0 + w1*c1 + w2*c2
+/// 5.   描画: framebuffer[x, y] = color
+/// 6.   更新: depth_buffer[x, y] = depth
+/// 7. }
+/// ```
+///
+/// ## 学習ポイント
+///
+/// - Phase 2のfillTriangleInterpolated()に深度テストを追加
+/// - 重心座標で深度値も補間
+/// - これにより正しい前後関係で描画される
+///
+/// ## TODO (Phase 4)
+///
+/// - パースペクティブコレクト補間（透視補正）
+/// - 深度値の補間にw座標を考慮
+///
+/// @param v0, v1, v2 3D頂点（スクリーン座標 + 深度 + 色）
+pub fn fillTriangle3D(v0: Vertex3DScreen, v1: Vertex3DScreen, v2: Vertex3DScreen) void {
+    // スクリーン座標のXY成分だけを抽出
+    const p0 = vec2.init(v0.screen_pos[0], v0.screen_pos[1]);
+    const p1 = vec2.init(v1.screen_pos[0], v1.screen_pos[1]);
+    const p2 = vec2.init(v2.screen_pos[0], v2.screen_pos[1]);
+
+    const bbox = computeBoundingBox(p0, p1, p2);
+    const fb_ptr = framebuffer.getPtr();
+    const width = framebuffer.getWidth();
+
+    var y: i32 = bbox.min_y;
+    while (y <= bbox.max_y) : (y += 1) {
+        var x: i32 = bbox.min_x;
+        while (x <= bbox.max_x) : (x += 1) {
+            const p = vec2.init(@floatFromInt(x), @floatFromInt(y));
+            const bc = barycentric(p0, p1, p2, p);
+
+            // 重心座標がすべて非負なら内部
+            if (bc[0] >= 0 and bc[1] >= 0 and bc[2] >= 0) {
+                // 深度値を補間
+                const depth = bc[0] * v0.screen_pos[2] +
+                    bc[1] * v1.screen_pos[2] +
+                    bc[2] * v2.screen_pos[2];
+
+                // 深度テスト
+                const ux = @as(u32, @intCast(x));
+                const uy = @as(u32, @intCast(y));
+
+                if (depth_buffer.testAndSet(ux, uy, depth)) {
+                    // 頂点カラーを補間（SIMD演算）
+                    const w0: Vec4 = @splat(bc[0]);
+                    const w1: Vec4 = @splat(bc[1]);
+                    const w2: Vec4 = @splat(bc[2]);
+                    const c0 = v0.color * w0;
+                    const c1 = v1.color * w1;
+                    const c2 = v2.color * w2;
+                    const interpolated = c0 + c1 + c2;
+
+                    // u32に変換して描画
+                    const color = vec4ToColor(interpolated);
+                    const index = uy * width + ux;
+                    fb_ptr[index] = color;
+                }
             }
         }
     }

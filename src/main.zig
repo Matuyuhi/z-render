@@ -55,7 +55,9 @@ export fn getFramebufferHeight() u32 {
 /// @param height 高さ（ピクセル）
 /// @return 成功なら true
 export fn initFramebuffer(width: u32, height: u32) bool {
-    return render.framebuffer.init(width, height);
+    const fb_ok = render.framebuffer.init(width, height);
+    const db_ok = render.depth_buffer.init(width, height);
+    return fb_ok and db_ok;
 }
 
 /// フレームバッファを指定色でクリア
@@ -117,35 +119,98 @@ export fn drawTriangleGouraud(
     render.rasterizer.fillTriangleInterpolated(v0, v1, v2);
 }
 
+// =============================================================================
+// Phase 3: 3D Cube Demo
+// =============================================================================
+
+// グローバル変数: 時間カウンター（フレーム数）
+var frame_counter: u32 = 0;
+
 /// 1フレームをレンダリング
-/// Phase 2 デモ: Hello World Triangle を描画
+/// Phase 3 デモ: 回転する3Dキューブを描画
 export fn renderFrame() void {
-    // 黒でクリア
-    render.framebuffer.clear(0xFF000000);
+    // バッファをクリア
+    render.framebuffer.clear(0xFF000000); // 黒
+    render.depth_buffer.clear();
 
     // 画面サイズを取得
     const width = @as(f32, @floatFromInt(render.framebuffer.getWidth()));
     const height = @as(f32, @floatFromInt(render.framebuffer.getHeight()));
 
-    // 画面中央に三角形を描画（Gouraud Shading）
-    const cx = width / 2.0;
-    const cy = height / 2.0;
-    const size: f32 = 200.0;
+    // 時間を進める（フレームカウンター）
+    frame_counter +%= 1;
+    const time = @as(f32, @floatFromInt(frame_counter)) * 0.016; // 約60FPS想定
 
-    // 頂点座標（画面中央を基準に、上・左下・右下の正三角形風）
-    const x0 = cx;
-    const y0 = cy - size;
-    const x1 = cx - size * 0.866; // cos(30度) ≈ 0.866
-    const y1 = cy + size * 0.5;
-    const x2 = cx + size * 0.866;
-    const y2 = cy + size * 0.5;
+    // カメラの設定
+    const eye = math.vec.vec3.init(0.0, 0.0, 5.0); // カメラ位置
+    const target = math.vec.vec3.init(0.0, 0.0, 0.0); // 注視点
+    const up = math.vec.vec3.init(0.0, 1.0, 0.0); // 上方向
 
-    // 頂点カラー（赤・緑・青）
-    drawTriangleGouraud(
-        x0, y0, 1.0, 0.0, 0.0, 1.0, // 頂点0: 赤
-        x1, y1, 0.0, 1.0, 0.0, 1.0, // 頂点1: 緑
-        x2, y2, 0.0, 0.0, 1.0, 1.0, // 頂点2: 青
+    const view = math.Mat4.lookAt(eye, target, up);
+    const proj = math.Mat4.perspective(
+        std.math.degreesToRadians(60.0), // 視野角60度
+        width / height, // アスペクト比
+        0.1, // ニアクリップ
+        100.0, // ファークリップ
     );
+
+    // Model行列: Y軸とX軸で回転
+    const rot_y = math.Mat4.rotationY(time * 0.5);
+    const rot_x = math.Mat4.rotationX(time * 0.3);
+    const model = rot_y.mul(rot_x);
+
+    // MVP行列を事前計算
+    const mvp = proj.mul(view).mul(model);
+
+    // キューブメッシュを取得
+    const cube = render.mesh.getCubeMesh();
+
+    // 各三角形を描画
+    for (cube.indices) |tri| {
+        const v0 = cube.vertices[tri.v0];
+        const v1 = cube.vertices[tri.v1];
+        const v2 = cube.vertices[tri.v2];
+
+        // ローカル座標をクリップ座標に変換
+        const clip0 = mvp.mulVec4(math.vec.vec4.fromVec3(v0.pos, 1.0));
+        const clip1 = mvp.mulVec4(math.vec.vec4.fromVec3(v1.pos, 1.0));
+        const clip2 = mvp.mulVec4(math.vec.vec4.fromVec3(v2.pos, 1.0));
+
+        // 透視除算 → スクリーン座標変換
+        const ndc0 = render.pipeline.clipToNDC(clip0);
+        const ndc1 = render.pipeline.clipToNDC(clip1);
+        const ndc2 = render.pipeline.clipToNDC(clip2);
+
+        const screen0 = render.pipeline.ndcToScreen(ndc0, width, height);
+        const screen1 = render.pipeline.ndcToScreen(ndc1, width, height);
+        const screen2 = render.pipeline.ndcToScreen(ndc2, width, height);
+
+        // バックフェイスカリング（2D判定）
+        const p0 = math.vec.vec2.init(screen0[0], screen0[1]);
+        const p1 = math.vec.vec2.init(screen1[0], screen1[1]);
+        const p2 = math.vec.vec2.init(screen2[0], screen2[1]);
+
+        if (!render.pipeline.isFrontFacing(p0, p1, p2)) {
+            continue; // 裏面なのでスキップ
+        }
+
+        // 3D頂点を構築
+        const sv0 = render.rasterizer.Vertex3DScreen{
+            .screen_pos = screen0,
+            .color = v0.color,
+        };
+        const sv1 = render.rasterizer.Vertex3DScreen{
+            .screen_pos = screen1,
+            .color = v1.color,
+        };
+        const sv2 = render.rasterizer.Vertex3DScreen{
+            .screen_pos = screen2,
+            .color = v2.color,
+        };
+
+        // 深度バッファ対応で描画
+        render.rasterizer.fillTriangle3D(sv0, sv1, sv2);
+    }
 }
 
 // =============================================================================
