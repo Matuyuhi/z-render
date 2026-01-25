@@ -66,10 +66,10 @@ Phase 2: The Rasterizer (2D)
 - [x] 重心座標を使った色の補間 (Gouraud Shadingの基礎)
 
 Phase 3: The 3D Pipeline
-- [ ] Model, View, Projection 行列の実装
-- [ ] 座標変換パイプラインの構築 (Local -> World -> Clip -> Screen)
-- [ ] 深度バッファ (Z-Buffer) の実装
-- [ ] Back-face Culling (裏面の描画スキップ)
+- [x] Model, View, Projection 行列の実装
+- [x] 座標変換パイプラインの構築 (Local -> World -> Clip -> Screen)
+- [x] 深度バッファ (Z-Buffer) の実装
+- [x] Back-face Culling (裏面の描画スキップ)
 
 Phase 4: Shading & Textures
 - [ ] UV座標の補間 (Perspective Correct Interpolation)
@@ -81,11 +81,20 @@ Phase 5: Optimization (The Beast Mode)
 - [ ] マルチスレッド化 (Web Workers)
 - [ ] プロファイリングとボトルネック潰し
 
-🚩 First Milestone: "The Hello World Triangle"
-まずは3D計算を無視し、**「2Dの三角形を、爆速で画面に出す」**ことを目指します。
-- WasmからJSのCanvasへピクセルデータを転送できること。
-- 固定された3つの座標 (x, y) に対し、三角形の内側を赤色で塗りつぶすこと。
-- 制約: drawPixel(x, y) のような関数呼び出しをループ内で使わず、ポインタ演算でバッファを直接書き換えること。
+## 🚩 マイルストーン
+
+### ✅ Phase 2 Milestone: "The Hello World Triangle"
+2Dの三角形を、爆速で画面に出す。
+- ✅ WasmからJSのCanvasへピクセルデータを転送
+- ✅ Gouraud Shading（頂点カラー補間）
+- ✅ ポインタ演算でバッファを直接書き換え
+
+### ✅ Phase 3 Milestone: "The Rotating Cube"
+3Dパイプラインを実装し、回転するキューブを描画。
+- ✅ Model/View/Projection 行列による座標変換
+- ✅ 深度バッファ (Z-Buffer) による正しい前後関係
+- ✅ バックフェイスカリングで裏面をスキップ
+- ✅ 60FPSで滑らかに回転する3Dキューブ
 
 ## 🚀 Quick Start
 
