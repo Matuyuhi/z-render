@@ -23,9 +23,11 @@ pub fn build(b: *std.Build) void {
     // メインのWasmライブラリをビルド
     const lib = b.addExecutable(.{
         .name = "z-render",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     // Wasm向けの設定
@@ -45,10 +47,12 @@ pub fn build(b: *std.Build) void {
     // テスト設定
     // ===================
     const unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/main.zig"),
-        // テストはネイティブターゲットで実行
-        .target = b.host,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            // テストはネイティブターゲットで実行
+            .target = b.graph.host,
+            .optimize = optimize,
+        }),
     });
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
