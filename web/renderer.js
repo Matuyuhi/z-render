@@ -217,9 +217,8 @@ async function main() {
     const success = await renderer.init();
     if (!success) return;
 
-    // 初期状態: 黒でクリア
-    renderer.clear(rgba(0, 0, 0, 255));
-    renderer.blitToCanvas();
+    // 初期状態: Hello World Triangle を描画
+    renderer.render();
 
     // ボタンイベント
     document.getElementById('btn-clear-red').addEventListener('click', () => {
@@ -237,8 +236,8 @@ async function main() {
         renderer.blitToCanvas();
     });
 
-    // アニメーションループは必要に応じて有効化
-    // renderer.startLoop();
+    // アニメーションループを開始（Phase 2: 三角形を継続的に描画）
+    renderer.startLoop();
 
     console.log('Z-Render is ready!');
     console.log('Try: renderer.clear(rgba(255, 0, 0, 255))');

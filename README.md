@@ -1,8 +1,10 @@
 # Z-Render: The High-Performance Software GPU
 
-Z-Render is a zero-dependency, SIMD-accelerated 3D graphics pipeline written in Zig.  
+Z-Render is a zero-dependency, SIMD-accelerated 3D graphics pipeline written in Zig.
 It rejects modern graphics APIs (WebGL, WebGPU, Vulkan) to implement the entire rendering pipeline purely on the CPU, targeting WebAssembly for high-performance browser execution.
 > Motto: "No GPU? No Problem. We are the GPU."
+
+**🎮 [Live Demo on GitHub Pages](https://matuyuhi.github.io/z-render/)** *(自動デプロイ)*
 
 
 🚀 Project Concept  
@@ -52,16 +54,16 @@ graph LR
 ✅ Todo List & Roadmap
 
 Phase 1: Foundation & Math
-- [ ] プロジェクトセットアップ (Zig + Wasmビルド環境)
-- [ ] フレームバッファ ([]u32) の作成とJS側への転送
-- [ ] SIMD算術ライブラリの実装 (Vec3, Vec4, Mat4)
-  - [ ] Dot Product, Cross Product のSIMD化
+- [x] プロジェクトセットアップ (Zig + Wasmビルド環境)
+- [x] フレームバッファ ([]u32) の作成とJS側への転送
+- [x] SIMD算術ライブラリの実装 (Vec3, Vec4, Mat4)
+  - [x] Dot Product, Cross Product のSIMD化
 
 Phase 2: The Rasterizer (2D)
-- [ ] 頂点3つを受け取り、バウンディングボックスを計算する
-- [ ] Barycentric Coordinates (重心座標) の実装
-- [ ] 三角形の塗りつぶし (単色)
-- [ ] 重心座標を使った色の補間 (Gouraud Shadingの基礎)
+- [x] 頂点3つを受け取り、バウンディングボックスを計算する
+- [x] Barycentric Coordinates (重心座標) の実装
+- [x] 三角形の塗りつぶし (単色)
+- [x] 重心座標を使った色の補間 (Gouraud Shadingの基礎)
 
 Phase 3: The 3D Pipeline
 - [ ] Model, View, Projection 行列の実装
@@ -85,10 +87,39 @@ Phase 5: Optimization (The Beast Mode)
 - 固定された3つの座標 (x, y) に対し、三角形の内側を赤色で塗りつぶすこと。
 - 制約: drawPixel(x, y) のような関数呼び出しをループ内で使わず、ポインタ演算でバッファを直接書き換えること。
 
-Start Command
-# Zig build & serve example
+## 🚀 Quick Start
+
+### ローカル環境で実行
+
+1. **リポジトリをクローン**
+```bash
+git clone https://github.com/Matuyuhi/z-render.git
+cd z-render
 ```
-zig build -Dtarget=wasm32-freestanding -Doptimize=ReleaseFast
+
+2. **Wasmモジュールをビルド**
+```bash
+zig build -Doptimize=ReleaseFast
+```
+
+3. **ローカルサーバーを起動**
+```bash
 python3 -m http.server 8000
 ```
+
+4. **ブラウザで開く**
+```
+http://localhost:8000/web/
+```
+
+### GitHub Pagesでの自動デプロイ
+
+mainブランチへのpush時に自動的にGitHub Pagesにデプロイされます。
+
+**デプロイURL**: https://matuyuhi.github.io/z-render/
+
+### 必要な環境
+
+- Zig 0.15.2
+- モダンなWebブラウザ（WebAssembly対応）
 
