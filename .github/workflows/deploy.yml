@@ -23,11 +23,11 @@ jobs:
     steps:
       # リポジトリをチェックアウト
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       # Zigのセットアップ
       - name: Setup Zig
-        uses: goto-bus-stop/setup-zig@v2
+        uses: goto-bus-stop/setup-zig@v2.2.1
         with:
           version: 0.15.2
 
@@ -49,11 +49,11 @@ jobs:
 
       # GitHub Pages用のアーティファクトをアップロード
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@v5.0.0
         with:
           path: deploy
 
       # GitHub Pagesにデプロイ
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@v5.0.1
